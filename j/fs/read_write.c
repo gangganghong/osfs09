@@ -30,6 +30,9 @@
  * Sector map is not needed to update, since the sectors for the file have been
  * allocated and the bits are set when the file was created.
  * 
+ * 简化版的文件系统。
+ * 认为文件数据在内存中是连续存储的。知道了占用扇区的初始值和数量，就获得了所有数据。
+ * 从 for (i = rw_sect_min; i <= rw_sect_max; i += chunk) 就能看出，作者确实是这样处理的。
  * @return How many bytes have been read/written.
  *****************************************************************************/
 PUBLIC int do_rdwt()
@@ -102,11 +105,17 @@ PUBLIC int do_rdwt()
 				  fsbuf);
 
 			if (fs_msg.type == READ) {
+				// 把任务进程读取到的数据复制到用户进程
 				phys_copy((void*)va2la(src, buf + bytes_rw),
 					  (void*)va2la(TASK_FS, fsbuf + off),
 					  bytes);
 			}
 			else {	/* WRITE */
+				// 为啥写入数据也要先读取数据？
+				// 读写数据的单位是扇区，写操作时，给出了写操作的起始位置即开始扇区，但并不是从这个扇区的开始位置写数据（不能覆盖已有数据，只能追加），所以，将新数据追加到本扇区已有数据的后面，
+				// 再一起写入。
+				// 有疑问：相加后的数据，超过了1个扇区，怎么处理的？
+				// 扇区map的标志规则是：只要一个扇区被使用了，哪怕只要一个字节，也会标志为已经使用。
 				phys_copy((void*)va2la(TASK_FS, fsbuf + off),
 					  (void*)va2la(src, buf + bytes_rw),
 					  bytes);

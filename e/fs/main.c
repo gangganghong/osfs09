@@ -418,10 +418,17 @@ PUBLIC struct inode * get_inode(int dev, int num)
 	int blk_nr = 1 + 1 + sb->nr_imap_sects + sb->nr_smap_sects +
 		((num - 1) / (SECTOR_SIZE / INODE_SIZE));
 	RD_SECT(dev, blk_nr);
+	// 作用是什么？
+	// 这种给struct赋值的方式，没有问题。之前已经知道了，struct就是一段内存中的数据。
+	// 我不理解的是，fsbuf中偏移几个inode后就是新inode的数据。
+	// 1. 在fsbuf中，inode是连续的吗？
+	// 2. 在fsbuf中，只有inode吗？
+	// 3. fsbuf和inode_table有没有关系？
 	struct inode * pinode =
 		(struct inode*)((u8*)fsbuf +
 				((num - 1 ) % (SECTOR_SIZE / INODE_SIZE))
 				 * INODE_SIZE);
+	// 仅仅是初始化吗？
 	q->i_mode = pinode->i_mode;
 	q->i_size = pinode->i_size;
 	q->i_start_sect = pinode->i_start_sect;

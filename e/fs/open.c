@@ -35,7 +35,9 @@ PRIVATE void new_dir_entry(struct inode * dir_inode, int inode_nr, char * filena
  *****************************************************************************/
 /**
  * Open a file and return the file descriptor.
- * 
+ * 每个进程有一个成员变量，struct file_desc * filp[NR_FILES]，存储的是文件描述符的内存地址，真正的文件描述符数据存储在全局变量 EXTERN	struct file_desc	f_desc_table[NR_FILE_DESC]。
+ * 先从进程中找到一个未被使用的文件描述符指针P，再从文件描述符全局表中找到一个未被使用的文件描述符FD，然后将P指向FD。
+ * 最后，对FD的各成员进行赋值。
  * @return File descriptor if successful, otherwise a negative error code.
  *****************************************************************************/
 PUBLIC int do_open()
@@ -57,6 +59,10 @@ PUBLIC int do_open()
 	/* find a free slot in PROCESS::filp[] */
 	int i;
 	for (i = 0; i < NR_FILES; i++) {
+		// EXTERN	struct proc *		pcaller;
+		// for (j = 0; j < NR_FILES; j++)
+		//	p_proc->filp[j] = 0;
+		// 在 kernel/main.c 中，进程初始时，会将进程的每个文件描述符初始化为0。
 		if (pcaller->filp[i] == 0) {
 			fd = i;
 			break;
@@ -67,6 +73,8 @@ PUBLIC int do_open()
 
 	/* find a free slot in f_desc_table[] */
 	for (i = 0; i < NR_FILE_DESC; i++)
+		// struct file_desc
+		// EXTERN	struct file_desc	f_desc_table[NR_FILE_DESC];
 		if (f_desc_table[i].fd_inode == 0)
 			break;
 	if (i >= NR_FILE_DESC)
