@@ -192,6 +192,9 @@ PRIVATE void mkfs()
 	/*          `/'         */
 	/************************/
 	memset(fsbuf, 0, SECTOR_SIZE);
+	// 神奇。能这样随意转换指针类型吗？
+	// 我看到过先例。把u16 *转成u8 *。
+	// 内存地址，只是开头的内存地址而已，根据指针类型的不同占据不同长度的内存空间
 	struct dir_entry * pde = (struct dir_entry *)fsbuf;
 
 	pde->inode_nr = 1;

@@ -158,6 +158,15 @@ LABEL_GOON_LOADING_FILE:
 	add	ax, dx
 	add	ax, DeltaSectorNo
 	add	bx, [BPB_BytsPerSec]
+	jc	NEXT_ES
+	jmp	GO_ON
+NEXT_ES:
+	push	ax
+	mov	ax, es
+	add	ax, 1000h
+	mov	es, ax
+	pop	ax
+GO_ON:
 	jmp	LABEL_GOON_LOADING_FILE
 LABEL_FILE_LOADED:
 

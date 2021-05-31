@@ -4,7 +4,7 @@
 
 # Entry point of Orange'S
 # It must have the same value with 'KernelEntryPointPhyAddr' in load.inc!
-ENTRYPOINT	= 0x30400
+ENTRYPOINT	= 0x1400
 
 # Offset of entry point in kernel file
 # It depends on ENTRYPOINT
@@ -13,13 +13,13 @@ ENTRYOFFSET	=   0x400
 # Programs, flags, etc.
 ASM		= nasm
 DASM		= objdump
-CC		= gcc
+CC		= gcc -g
 LD		= ld
 ASMBFLAGS	= -I boot/include/
 ASMKFLAGS	= -I include/ -I include/sys/ -f elf
-CFLAGS		= -I include/ -I include/sys/ -c -fno-builtin -Wall
+CFLAGS		= -I include/ -I include/sys/ -c -fno-builtin -Wall -m32
 #CFLAGS		= -I include/ -c -fno-builtin -fno-stack-protector -fpack-struct -Wall
-LDFLAGS		= -Ttext $(ENTRYPOINT) -Map krnl.map
+LDFLAGS		= -Ttext $(ENTRYPOINT) -Map krnl.map -m elf_i386
 DASMFLAGS	= -D
 
 # This Program

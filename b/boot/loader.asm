@@ -158,6 +158,17 @@ LABEL_GOON_LOADING_FILE:
 	add	ax, dx
 	add	ax, DeltaSectorNo
 	add	bx, [BPB_BytsPerSec]
+	jc	.1
+	jmp	.2
+.1:
+	push	ax
+	mov	ax, es
+	; 为何只加1000h而不是10000h？
+	; 因为，实模式下，寻址方式是：段地址右移四位
+	add	ax, 1000h
+	mov	es, ax
+	pop	ax
+.2:
 	jmp	LABEL_GOON_LOADING_FILE
 LABEL_FILE_LOADED:
 

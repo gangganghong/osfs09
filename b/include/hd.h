@@ -244,7 +244,12 @@ struct part_info {
 struct hd_info
 {
 	int			open_cnt;
+	// NR_PRIM_PER_DRIVE 是5，为何不是4？
 	struct part_info	primary[NR_PRIM_PER_DRIVE];
+	// NR_SUB_PER_DRIVE是64，为何不是16？
+	// 为何应该是16？一个硬盘只有一个扩展分区而不是4个扩展分区，
+	// 每个扩展分区只有16个逻辑分区。所以，仅有一个扩展分区的硬盘
+	// 应该只有1个逻辑分区。
 	struct part_info	logical[NR_SUB_PER_DRIVE];
 };
 
