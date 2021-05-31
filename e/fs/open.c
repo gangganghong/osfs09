@@ -166,12 +166,15 @@ PRIVATE struct inode * create_file(char * path, int flags)
 
 	int inode_nr = alloc_imap_bit(dir_inode->i_dev);
 
+	// free_sect_nr 是什么？是一个文件占用的第一个扇区。
+	// 在创建文件的时候，规定了这个文件占用的扇区数。
+	// 意思是，在创建文件的时候，文件的大小就固定了。 
 	int free_sect_nr = alloc_smap_bit(dir_inode->i_dev,
 					  NR_DEFAULT_FILE_SECTS);
-
+	// 这个文件的inodde在inode-array中的索引是inode_nr
 	struct inode *newino = new_inode(dir_inode->i_dev, inode_nr,
 					 free_sect_nr);
-
+	// 新建文件在根目录中
 	new_dir_entry(dir_inode, newino->i_num, filename);
 
 	return newino;
@@ -302,6 +305,7 @@ PRIVATE int alloc_smap_bit(int dev, int nr_sects_to_alloc)
 
 	struct super_block * sb = get_super_block(dev);
 
+	// 文件系统在分区中的位置分布就是如此：boot sector、super block、inode-map。
 	int smap_blk0_nr = 1 + 1 + sb->nr_imap_sects;
 	int free_sect_nr = 0;
 
@@ -310,12 +314,17 @@ PRIVATE int alloc_smap_bit(int dev, int nr_sects_to_alloc)
 		RD_SECT(dev, smap_blk0_nr + i);
 
 		/* byte offset in current sect */
+		// nr_sects_to_alloc 是什么？
 		for (j = 0; j < SECTOR_SIZE && nr_sects_to_alloc > 0; j++) {
 			k = 0;
 			if (!free_sect_nr) {
 				/* loop until a free bit is found */
+				// j是偏移量，基址是0。这一点，本不该有疑问。
+				// j是偏移量，这是啥意思？意思是，fsbuf[j]的前面有j个字节。
 				if (fsbuf[j] == 0xFF) continue;
 				for (; ((fsbuf[j] >> k) & 1) != 0; k++) {}
+				// 为什么会有“- 1 + sb->n_1st_sect”?
+				// 
 				free_sect_nr = (i * SECTOR_SIZE + j) * 8 +
 					k - 1 + sb->n_1st_sect;
 			}

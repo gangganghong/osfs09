@@ -133,6 +133,7 @@ port_read:
 	mov	edx, [esp + 4]		; port
 	mov	edi, [esp + 4 + 4]	; buf
 	mov	ecx, [esp + 4 + 4 + 4]	; n
+	; 读取数据的单位是字。但参数n的单位是字节。
 	shr	ecx, 1
 	cld
 	rep	insw

@@ -113,8 +113,9 @@ PRIVATE void hd_open(int device)
 	assert(drive == 0);	/* only one drive */
 
 	hd_identify(drive);
-
+	// open_cnt 记录硬盘被打开的次数
 	if (hd_info[drive].open_cnt++ == 0) {
+		// drive * (NR_PART_PER_DRIVE + 1) 是 0 或 5
 		partition(drive * (NR_PART_PER_DRIVE + 1), P_PRIMARY);
 		print_hdinfo(&hd_info[drive]);
 	}
@@ -165,30 +166,43 @@ PRIVATE void partition(int device, int style)
 {
 	int i;
 	int drive = DRV_OF_DEV(device);
+	// drive要么是0，要么是1
 	struct hd_info * hdi = &hd_info[drive];
-
+	// NR_SUB_PER_DRIVE 是 64
+	// part_tbl不需要这么大吧？每个分区表最多只有4个表项。
 	struct part_ent part_tbl[NR_SUB_PER_DRIVE];
+	// part_tbl设置成4个元素能正常运行；设置成2个，不能正常运行
+	// struct part_ent part_tbl[2];
+	// struct part_ent part_tbl[4];
 
 	if (style == P_PRIMARY) {
 		get_part_table(drive, drive, part_tbl);
-
+		// nr_prim_parts 有什么用？
+		// 统计主分区的数量，调试时用。一个硬盘的主分区的数量必定大于0。
 		int nr_prim_parts = 0;
 		for (i = 0; i < NR_PART_PER_DRIVE; i++) { /* 0~3 */
 			if (part_tbl[i].sys_id == NO_PART) 
 				continue;
 
 			nr_prim_parts++;
+			// 分区编号0是整个硬盘，遍历主分区时应该跳过0分区
 			int dev_nr = i + 1;		  /* 1~4 */
 			hdi->primary[dev_nr].base = part_tbl[i].start_sect;
 			hdi->primary[dev_nr].size = part_tbl[i].nr_sects;
 
 			if (part_tbl[i].sys_id == EXT_PART) /* extended */
+				// device + dev_nr 中，不加 device 行不行？
+				// 我认为，没必要加。
+				// 明确问题，然后用具体实例计算。其实，是很容易回答的问题。
+				// 必须加。因为有两块硬盘。主硬盘device是0，从硬盘device是5。
 				partition(device + dev_nr, P_EXTENDED);
+				// partition(dev_nr, P_EXTENDED);
 		}
 		assert(nr_prim_parts != 0);
 	}
 	else if (style == P_EXTENDED) {
 		int j = device % NR_PRIM_PER_DRIVE; /* 1~4 */
+		// 主扩展分区的绝对LBA地址
 		int ext_start_sect = hdi->primary[j].base;
 		int s = ext_start_sect;
 		int nr_1st_sub = (j - 1) * NR_SUB_PER_PART; /* 0/16/32/48 */
@@ -197,10 +211,11 @@ PRIVATE void partition(int device, int style)
 			int dev_nr = nr_1st_sub + i;/* 0~15/16~31/32~47/48~63 */
 
 			get_part_table(drive, s, part_tbl);
-
+			// 逻辑分区的绝对LBA地址
 			hdi->logical[dev_nr].base = s + part_tbl[0].start_sect;
 			hdi->logical[dev_nr].size = part_tbl[0].nr_sects;
-
+			// 子扩展分区的绝对LBA地址
+			// 子扩展分区的偏移量的参照位置总是主扩展分区的绝对LBA地址
 			s = ext_start_sect + part_tbl[1].start_sect;
 
 			/* no more logical partitions
@@ -225,6 +240,7 @@ PRIVATE void partition(int device, int style)
 PRIVATE void print_hdinfo(struct hd_info * hdi)
 {
 	int i;
+	// 主分区
 	for (i = 0; i < NR_PART_PER_DRIVE + 1; i++) {
 		printl("%sPART_%d: base %d(0x%x), size %d(0x%x) (in sector)\n",
 		       i == 0 ? " " : "     ",
@@ -234,6 +250,7 @@ PRIVATE void print_hdinfo(struct hd_info * hdi)
 		       hdi->primary[i].size,
 		       hdi->primary[i].size);
 	}
+	// 一个主扩展分区包含的逻辑分区
 	for (i = 0; i < NR_SUB_PER_DRIVE; i++) {
 		if (hdi->logical[i].size == 0)
 			continue;
@@ -270,6 +287,10 @@ PRIVATE void hd_identify(int drive)
 
 	hd_info[drive].primary[0].base = 0;
 	/* Total Nr of User Addressable Sectors */
+	// 小端法
+	// 为什么要使用hdbuf而不是直接使用hddinfo？
+	// 为什么要把hdinfo声明成为u16 *类型指针？
+	// hdinfo[60]和hdinfo[61]，都是一个字节的数据而不是一个字。
 	hd_info[drive].primary[0].size = ((int)hdinfo[61] << 16) + hdinfo[60];
 }
 
@@ -294,6 +315,17 @@ PRIVATE void print_identify_info(u16* hdinfo)
 		     {27, 40, "HD Model"} /* Model number in ASCII */ };
 
 	for (k = 0; k < sizeof(iinfo)/sizeof(iinfo[0]); k++) {
+		// 明白了这句。hdinfo本来是u16类型数组，经过这句后，变成了char类型数组。
+		// *p 是字符。
+		// "XBDH0010 1   1      \003" 经过处理后，结果是
+		// "BXHD00011"。
+		// iinfo[k].len/2 是 10。
+		// 我原以为，一个字表示一个字符（在汇编中，al存储字符，ah存储颜色）。
+		// 实际运行发现，不是这样的。一个字节表示一个字符。差点让两种不同的知识点混淆。
+		// 在底层代码out_char中，颜色由我设置，而要被打印的字符从此处的s中获取。
+		// 所以，在上层代码（也就是这里）不需要用一个字表示一个字符。
+		// 长度是字节数，但是，字符数是字数。这个说法不正确。
+		// 字符数就是字节数。一次处理了一个字的数据，所以，循环次数是字数。
 		char * p = (char*)&hdinfo[iinfo[k].idx];
 		for (i = 0; i < iinfo[k].len/2; i++) {
 			s[i*2+1] = *p++;
@@ -303,6 +335,13 @@ PRIVATE void print_identify_info(u16* hdinfo)
 		printl("%s: %s\n", iinfo[k].desc, s);
 	}
 
+	// 0x0200的二进制形式是：0010 0000 0000
+	// bit 9 是哪个？
+	// 如果从0开始计数。不对，不是“如果”。
+	// 此处的bit 9，应当是从0开始计数。
+	// 也就是说，bit 9是从右边起第10个数（此时，基址是1）。
+	// 从hdinfo的第49个bit开始，检查第9个bit是0还是1。
+	// hdinfo的第49个bit，基址是多少？是0。为啥？因为hdinfo是一个数组。
 	int capabilities = hdinfo[49];
 	printl("LBA supported: %s\n",
 	       (capabilities & 0x0200) ? "Yes" : "No");

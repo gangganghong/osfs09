@@ -207,6 +207,7 @@ PRIVATE void hd_rdwt(MESSAGE * p)
 			port_write(REG_DATA, la, bytes);
 			interrupt_wait();
 		}
+		// 为何不是bytes？
 		bytes_left -= SECTOR_SIZE;
 		la += SECTOR_SIZE;
 	}

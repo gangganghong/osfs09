@@ -39,6 +39,7 @@ BaseOfStack	equ	0100h
 
 
 LABEL_START:			; <--- 从这里开始 *************
+	xchg	bx, bx
 	mov	ax, cs
 	mov	ds, ax
 	mov	es, ax
@@ -158,6 +159,17 @@ LABEL_GOON_LOADING_FILE:
 	add	ax, dx
 	add	ax, DeltaSectorNo
 	add	bx, [BPB_BytsPerSec]
+	jc	.1
+	jmp	.2
+.1:
+	push	ax
+	mov	ax, es
+	; 为何只加1000h而不是10000h？
+	; 因为，实模式下，寻址方式是：段地址右移四位
+	add	ax, 1000h
+	mov	es, ax
+	pop	ax
+.2:
 	jmp	LABEL_GOON_LOADING_FILE
 LABEL_FILE_LOADED:
 
@@ -185,6 +197,7 @@ LABEL_FILE_LOADED:
 	mov	cr0, eax
 
 ; 真正进入保护模式
+	xchg	bx, bx
 	jmp	dword SelectorFlatC:(BaseOfLoaderPhyAddr+LABEL_PM_START)
 
 
@@ -344,6 +357,7 @@ ALIGN	32
 [BITS	32]
 
 LABEL_PM_START:
+	xchg	bx, bx
 	mov	ax, SelectorVideo
 	mov	gs, ax
 	mov	ax, SelectorFlatRW
@@ -364,8 +378,10 @@ LABEL_PM_START:
 	;mov	al, 'P'
 	;mov	[gs:((80 * 0 + 39) * 2)], ax	; 屏幕第 0 行, 第 39 列。
 
+	xchg	bx, bx
 	call	InitKernel
 
+	xchg	bx, bx
 	;jmp	$
 
 	;***************************************************************

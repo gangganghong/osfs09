@@ -264,6 +264,7 @@ struct hd_info
 #define ATA_READ		0x20
 #define ATA_WRITE		0x30
 /* for DEVICE register. */
+// 用结构体表示，容易理解。
 #define	MAKE_DEVICE_REG(lba,drv,lba_highest) (((lba) << 6) |		\
 					      ((drv) << 4) |		\
 					      (lba_highest & 0xF) | 0xA0)

@@ -36,8 +36,10 @@ struct super_block {
 	u32	nr_sects;	  /**< How many sectors */
 	u32	nr_imap_sects;	  /**< How many inode-map sectors */
 	u32	nr_smap_sects;	  /**< How many sector-map sectors */
+	// 第一个数据扇区的扇区号
 	u32	n_1st_sect;	  /**< Number of the 1st data sector */
 	u32	nr_inode_sects;   /**< How many inode sectors */
+	// 根目录区的i-node号
 	u32	root_inode;       /**< Inode nr of root directory */
 	u32	inode_size;       /**< INODE_SIZE */
 	u32	inode_isize_off;  /**< Offset of `struct inode::i_size' */

@@ -131,7 +131,8 @@ void TestA()
 {
 	int fd;
 	int n;
-	const char filename[] = "blah";
+	const char filename[] = "cg";
+	const char filename2[] = "test";
 	const char bufw[] = "abcde";
 	const int rd_bytes = 3;
 	char bufr[rd_bytes];
@@ -142,6 +143,10 @@ void TestA()
 	fd = open(filename, O_CREAT | O_RDWR);
 	assert(fd != -1);
 	printf("File created. fd: %d\n", fd);
+	
+	fd = open(filename2, O_CREAT | O_RDWR);
+        assert(fd != -1);
+        printf("File created. fd: %d\n", fd);
 
 	/* write */
 	n = write(fd, bufw, strlen(bufw));
