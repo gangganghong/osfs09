@@ -59,6 +59,7 @@ PUBLIC int do_open()
 	/* find a free slot in PROCESS::filp[] */
 	int i;
 	for (i = 0; i < NR_FILES; i++) {
+		// filp 的每个元素的默认值是0，在初始化进程时初始化过吗？
 		// EXTERN	struct proc *		pcaller;
 		// for (j = 0; j < NR_FILES; j++)
 		//	p_proc->filp[j] = 0;
@@ -106,6 +107,7 @@ PUBLIC int do_open()
 		/* connects proc with file_descriptor */
 		pcaller->filp[fd] = &f_desc_table[i];
 
+		// 在PHP中，对f_desc_table的赋值需要在pcaller->filp[fd]这句前面。
 		/* connects file_descriptor with inode */
 		f_desc_table[i].fd_inode = pin;
 
