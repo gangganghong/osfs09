@@ -117,6 +117,7 @@ PUBLIC int strip_path(char * filename, const char * pathname,
 	if (s == 0)
 		return -1;
 
+	// 本函数不能处理 ./link.c 这种格式，只能处理 /link.c 这种格式。
 	if (*s == '/')
 		s++;
 
@@ -130,6 +131,37 @@ PUBLIC int strip_path(char * filename, const char * pathname,
 	}
 	*t = 0;
 
+	// root_inode 是全局变量，指向根目录的inode。
+	// root_inode 是指针，指针的值是一个内存地址。
+	// 能被赋值为内存地址的变量，必须是指针。
+	// 这句等价于 ppinode = &root_inode。
+	// 为什么两个语句等价？我以前理解其中缘由，此刻，我又不理解。
+	// 试着理解一下。
+	// 1. root_inode 是什么？是一个指针变量，值是一个内存地址。
+	// 2. ppinode 是什么？是一个指向指针的指针变量。
+	// 3. ppinode的数据类型是 struct inode ** ppinode。
+	// 4. 假设pinodde是一个指针变量，ppinode指向pinode。
+	// 5. 于是，有 *ppinode = pinode。
+	// 用这种方式，仍然不好理解，画示意图吧
+
+	/***********************************************************
+ 	 * address  |	0x00	|	0x01	|	0x02	|	0x03	|	0x04	|
+ 	 * var	    |	-	|	ppinode	|	pinode	|	-	|	data	|
+ 	 * data	    |	-	|	dppinode|	dpinode	|	-	|	ddata	|
+	 ***********************************************************
+ 	 * 1. ppinode、pinode、pinode指向的数据，三者在内存中的分布如上图所示。
+ 	 * 2. data是pinode指向的数据。
+ 	 * 3. ppinode指向0x02。
+ 	 * 4. pinode指向0x04。 
+ 	 * 5. pinode的值是什么？dpinode。
+ 	 * 6. *pinode的值是什么？ddata。
+	 * 7. ppinode的值是什么？dppinode。
+ 	 * 8. *ppinode的值是什么？dpinode。
+ 	 * 9. **ppinode的值是什么？是 *dpinode 的值。dpinode等价于pinode。*pinode的值是data。
+ 	 * 10. &pinode的值是什么？0x02，即存储pinode的内存空间的内存地址。
+ 	 * 10.1 每个内存地址，又可以存储在另外一个内存空间中。存储0x02这个内存地址的内存空间
+ 	 * 是内存地址为0x01的内存空间，即变量ppinode对应的内存空间。
+	 **********************************************************/
 	*ppinode = root_inode;
 
 	return 0;

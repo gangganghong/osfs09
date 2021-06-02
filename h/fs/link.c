@@ -198,8 +198,17 @@ PUBLIC int do_unlink()
 	/************************************************/
 	/* set the inode-nr to 0 in the directory entry */
 	/************************************************/
+	// dir_inode是根目录的inode。
 	int dir_blk0_nr = dir_inode->i_start_sect;
+	// dir_inode->i_size + SECTOR_SIZE 这是什么？
+	// 根目录的大小加一个扇区的字节数，是什么意思？
+	// 1. nr_dir_blks是遍历根目录的循环的终止条件中使用的标志数据。
+	// 2. 需要保证，这个循环至少执行一次。
+	// 3. 所以，需要保证nr_dir_blks大于等于1。而在循环中，记录循环次数的变量小于nr_dir_blks。
+	// 4. 如果记录循环次数的变量小于等于nr_dir_blks，此处，并不需要把根目录的大小加上一个扇区。
 	int nr_dir_blks = (dir_inode->i_size + SECTOR_SIZE) / SECTOR_SIZE;
+	// nr_dir_entries 又是什么？
+	// 不该问这个问题。很明显，它是根目录中包含的目录项数量。
 	int nr_dir_entries =
 		dir_inode->i_size / DIR_ENTRY_SIZE; /* including unused slots
 						     * (the file has been
@@ -211,12 +220,26 @@ PUBLIC int do_unlink()
 	int flg = 0;
 	int dir_size = 0;
 
+	// 看懂了本循环的大概意思。
+	// 1.第一层循环，遍历根目录占用的所有扇区。
+	// 2.第二层循环，遍历一个扇区包含的每个目录项。
+	// 3.在第二层循环中，比较当前目录项是不是目标目录项。
+	// 4.比较目录项的条件是，比较目录项的inode_nr。
+	// 5.清除目录项的方法是，把目标目录项占用的内存空间的数据设置成0。 
+	//
+	// 看不明白的地方：nr_dir_blks、nr_dir_entries。
 	for (i = 0; i < nr_dir_blks; i++) {
 		RD_SECT(dir_inode->i_dev, dir_blk0_nr + i);
 
+		// pde这句，对指针的使用，我见过多次了。
 		pde = (struct dir_entry *)fsbuf;
 		int j;
 		for (j = 0; j < SECTOR_SIZE / DIR_ENTRY_SIZE; j++,pde++) {
+			// 是否多余？
+			// 移动到 if (pde->inode_nr == inode_nr) 这个判断中，更合理吧？
+			// 我以为，m是清理掉的根目录项的数量。
+			// 上面的理解不正确。m记录遍历根目录的次数。
+			// 为什么不是m++？因为，表示根目录自身的根目录项不需要遍历。
 			if (++m > nr_dir_entries)
 				break;
 
@@ -228,15 +251,21 @@ PUBLIC int do_unlink()
 				break;
 			}
 
+			// 记录根目录的大小
 			if (pde->inode_nr != INVALID_INODE)
 				dir_size += DIR_ENTRY_SIZE;
 		}
 
+		// flag == 1，表示，已经找到了目标目录项。
 		if (m > nr_dir_entries || /* all entries have been iterated OR */
 		    flg) /* file is found */
 			break;
 	}
 	assert(flg);
+	
+	// 当根目录中的所有目录项被清除掉时，根目录的大小是0。	
+	// 遍历完根目录，才更新根目录的inode。
+	// 没有遍历完，为啥不能更新？
 	if (m == nr_dir_entries) { /* the file is the last one in the dir */
 		dir_inode->i_size = dir_size;
 		sync_inode(dir_inode);
