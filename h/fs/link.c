@@ -106,11 +106,29 @@ PUBLIC int do_unlink()
 	 *  ...__/
 	 *      byte_idx: byte idx in the entire i-map
 	 */
+	// bit_idx 应该怎么理解？
+	// 第一种理解，从n_1st_sect到i_start_sect包含的扇区数量。
+	// 第二种理解，bit_idx是sector-map的索引，sector-map的索引的第0位是保留的，比数据区的扇区的序号大1。
+	// 假如 n_1st_sect = 0，i_start_sect = 1，那么，bit_idx = 2。
+	// 具体情况是：在sector-map中，第0号是保留位，第1号是n_1st_sect，第2号是i_start_sect。
+	// 像这种corner case，让我很烦。实在说不清为啥如此，那就这么说吧，这是用归纳法归纳出来的计算公式。
+	// n_1st_sect = 1，i_start_sect = 3， bit_idx = 4。
+	// 上面的理解非常混乱。
+	// pin->i_start_sect、 sb->n_1st_sect 都是 LBA 地址。
+	// 二者的差，是两个刻度之间的偏移量。
+	// 但是，我需要的，不是这两个刻度之间的偏移量，而是i_start_sect在sector-map中对应的bit和sector-map的第0号bit的偏移量。
+	// 目标偏移量 = i_start_sect - n_1st_sect + 1。n_1st_sect在sector-map中对应第1号bit。
 	bit_idx  = pin->i_start_sect - sb->n_1st_sect + 1;
 	byte_idx = bit_idx / 8;
 	int bits_left = pin->i_nr_sects;
+	// bits_left 是数量还是初始值是0的索引？是数量。
+	// byte_cnt 是数量还是初始值是0的索引？
+	// 当 bits_left = 1 时，bit_idx = 1，byte_cnt = 0。
 	int byte_cnt = (bits_left - (8 - (bit_idx % 8))) / 8;
 
+	// s是什么？它是目标文件占用的扇区在sector-map中的索引。
+	// 再具体一些，读取第s号扇区（初始值是0），所读取到一个扇区的数据记录目标文件在数据区域
+	// 的最开始的512*8个扇区（初始值是0）的使用情况。
 	/* current sector nr. */
 	int s = 2  /* 2: bootsect + superblk */
 		+ sb->nr_imap_sects + byte_idx / SECTOR_SIZE;
@@ -118,17 +136,33 @@ PUBLIC int do_unlink()
 	RD_SECT(pin->i_dev, s);
 
 	int i;
+	// 为什么需要特殊处理the first byte？
+	// 因为第一个字节的前N个bit记录了目标文件的sector的使用情况，第一个字节的(8-N)和目标文件毫无关系。
+	// bit_idx 是目标文件在数据区占用的扇区的数量。
+	// bit_idx % 8 是把bit数量换算成字节数量后不足一个字节的bit数量。
+	// byte_idx 是把bit数量换算成字节数量。
+	// byte_idx % SECTOR_SIZE 是把字节数量换算成扇区数量后不足一个扇区的剩余的字节数量。
+	// i < 8，为什么不是 i <= 8？这类问题，举例理解最好。
+	// 当 bit_idx % 8 = 0 时，i的范围是[0,7]，正好8个，一个字节。
+	// 当 bit_idx % 8 = 1 时，i的范围是[1, 7]，正好7个，加上前面的第0个，一个字节。
+	// 现在回答为什么不是 i <= 8？因为 i <= 8时，处理的bit数加上前面未处理的字节数，总计9个bit。
+	// 而我们只应该处理8个bit，也就是，我们只应该处理1个字节。
 	/* clear the first byte */
 	for (i = bit_idx % 8; (i < 8) && bits_left; i++,bits_left--) {
 		assert((fsbuf[byte_idx % SECTOR_SIZE] >> i & 1) == 1);
 		fsbuf[byte_idx % SECTOR_SIZE] &= ~(1 << i);
 	}
 
+	// the second to last 倒数第二
+	// 从第二个到倒数第二个字节，全部设置成0。
 	/* clear bytes from the second byte to the second to last */
 	int k;
 	i = (byte_idx % SECTOR_SIZE) + 1;	/* the second byte */
+	// 为什么不是 k <= byte_cnt ？
+	// 仍然举例子。
+	// 当 byte_cnt = 1 时，这个循环执行一次，仍有未处理完的bit。
 	for (k = 0; k < byte_cnt; k++,i++,bits_left-=8) {
-		if (i == SECTOR_SIZE) {
+		if (i == SECTOR_SIZE) {	
 			i = 0;
 			WR_SECT(pin->i_dev, s);
 			RD_SECT(pin->i_dev, ++s);
@@ -137,6 +171,8 @@ PUBLIC int do_unlink()
 		fsbuf[i] = 0;
 	}
 
+	// 未处理完的bit，在最后一个字节处理。
+	// 最后一个字节，又需要特殊处理。为什么？
 	/* clear the last byte */
 	if (i == SECTOR_SIZE) {
 		i = 0;
