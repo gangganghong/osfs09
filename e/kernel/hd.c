@@ -175,6 +175,10 @@ PRIVATE void hd_rdwt(MESSAGE * p)
 	 */
 	assert((pos & 0x1FF) == 0);
 
+	// 为什么需要这个操作 pos >> SECTOR_SIZE_SHIFT ？
+	// 呵呵。后面有注释，我还有疑问。
+	// a >> 1   ===> a / 2，a >> 2 ===> a / 4，a >> 9 ===> a / 512。
+	// SECTOR_SIZE_SHIFT 是 9，pos >> SECTOR_SIZE_SHIFT ===> pos / 512，把pos换算成扇区数。
 	u32 sect_nr = (u32)(pos >> SECTOR_SIZE_SHIFT); /* pos / SECTOR_SIZE */
 	int logidx = (p->DEVICE - MINOR_hd1a) % NR_SUB_PER_DRIVE;
 	sect_nr += p->DEVICE < MAX_PRIM ?
@@ -194,6 +198,8 @@ PRIVATE void hd_rdwt(MESSAGE * p)
 	int bytes_left = p->CNT;
 	void * la = (void*)va2la(p->PROC_NR, p->BUF);
 
+	// 理解代码，较好的方式是，用实例进行计算。
+	// 当 bytes_left = SECTOR_SIZE 时，写入了一个扇区的数据。可是，当数据不足一个扇区时，port_write如何处理？
 	while (bytes_left) {
 		int bytes = min(SECTOR_SIZE, bytes_left);
 		if (p->type == DEV_READ) {

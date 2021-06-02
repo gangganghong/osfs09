@@ -69,15 +69,15 @@ struct super_block {
  * and the size show how many bytes is used.
  * If <tt> size < (nr_sects * SECTOR_SIZE) </tt>, the rest bytes
  * are wasted and reserved for later writing.
- *
+ * 一个inode占用16 + 16个字节。
  * \b NOTE: Remember to change INODE_SIZE if the members are changed
  */
 struct inode {
-	u32	i_mode;		/**< Accsess mode */
-	u32	i_size;		/**< File size */
-	u32	i_start_sect;	/**< The first sector of the data */
-	u32	i_nr_sects;	/**< How many sectors the file occupies */
-	u8	_unused[16];	/**< Stuff for alignment */
+	u32	i_mode;		/**< Accsess mode */------------------------------------|
+	u32	i_size;		/**< File size */										|
+	u32	i_start_sect;	/**< The first sector of the data */				| 每个u32占用4个字节，四个u32占用16个字节
+	u32	i_nr_sects;	/**< How many sectors the file occupies */--------------|
+	u8	_unused[16];	/**< Stuff for alignment */-------------------------| _unused中的每个元素占用1个字节，16个元素占用16个字节
 
 	/* the following items are only present in memory */
 	int	i_dev;

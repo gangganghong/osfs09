@@ -539,6 +539,15 @@ PUBLIC struct inode * get_inode(int dev, int num)
 	// inode-map的第0个bit（初始值是0）是保留位，第1个bit记录inode-array中第0个（初始值是0）
 	// 元素的使用情况（有没有被使用）。所以，N = num - 1。
 	RD_SECT(dev, blk_nr);
+
+	// 作用是什么？
+	// 这种给struct赋值的方式，没有问题。之前已经知道了，struct就是一段内存中的数据。
+	// 我不理解的是，fsbuf中偏移几个inode后就是新inode的数据。
+	// 1. 在fsbuf中，inode是连续的吗？
+	// 2. 在fsbuf中，只有inode吗？
+	// 3. fsbuf和inode_table有没有关系？
+	//
+	//
 	// 一个 struct inode 占用 32 个字节。
 	// 对指针的使用，难理解。
 	// (u16 *)fsbuf + 2，2 的单位是多少？
@@ -560,6 +569,7 @@ PUBLIC struct inode * get_inode(int dev, int num)
 		(struct inode*)((u8*)fsbuf +
 				((num - 1 ) % (SECTOR_SIZE / INODE_SIZE))
 				 * INODE_SIZE);
+	// 仅仅是初始化吗？
 	q->i_mode = pinode->i_mode;
 	q->i_size = pinode->i_size;
 	q->i_start_sect = pinode->i_start_sect;
