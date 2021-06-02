@@ -65,6 +65,8 @@ struct proc {
 
 	int nr_tty;
 
+	// filp的每个元素的数据类型都是struct file_desc *。这意味着，它们的值可以是0。
+	// 内存地址，实际上是一个int类型数字。
 	struct file_desc * filp[NR_FILES];
 };
 
