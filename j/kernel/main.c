@@ -195,8 +195,12 @@ void TestB()
 {
 	char tty_name[] = "/dev_tty1";
 
+	// 打开文件，文件名非常重要。根据文件名找到文件描述符。
 	int fd_stdin  = open(tty_name, O_RDWR);
 	assert(fd_stdin  == 0);
+	// 和前面的open函数调用完全一样，结果怎么不一样？
+	// TestB进程打开了一个文件两次。每次打开一个文件，会新建一个文件描述符。
+	// open的返回结果是文件描述符在本进程的filp中的索引。
 	int fd_stdout = open(tty_name, O_RDWR);
 	assert(fd_stdout == 1);
 

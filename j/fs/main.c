@@ -117,6 +117,7 @@ PUBLIC void task_fs()
 		/* reply */
 		if (fs_msg.type != SUSPEND_PROC) {
 			fs_msg.type = SYSCALL_RET;
+			// src 是调用文件系统的进程的PID
 			send_recv(SEND, src, &fs_msg);
 		}
 	}
@@ -422,6 +423,12 @@ PUBLIC struct super_block * get_super_block(int dev)
  * 
  * @return The inode ptr requested.
  *****************************************************************************/
+// 1. inode_table[0].i_cnt = 0，inode_table[2].i_cnt = 2
+// 2. inode_table[0].i_num = 4, inode_table[2].i_num = num
+// 3. 本函数会选择inode_table[0]。我认为，应该选择inode_table[2]。没有理由，我就是这样觉得。
+// 4. 可是，我在上面举出的例子，是不可能存在的。一个inode具有唯一的num。
+// 因为本函数的返回结果是一个指针，也就是说，是一个内存地址。这个内存地址指向的是内存中的一个inode。
+// 对由本函数返回的inode的任何操作都会更新到inode的内存缓存中。这个特点，有点危险啊，容易出错。
 PUBLIC struct inode * get_inode(int dev, int num)
 {
 	if (num == 0)
@@ -429,7 +436,12 @@ PUBLIC struct inode * get_inode(int dev, int num)
 
 	struct inode * p;
 	struct inode * q = 0;
+	// 这样的逻辑，着实费解！结合语境来理解，它完全满足需求。
+	// 代码的表面意思，也容易理解。可是，不容易明白，为啥要这样写。
+	// 为本函数加个使用场景参数：创建、读写。容易理解多了，但是，不够酷！
 	for (p = &inode_table[0]; p < &inode_table[NR_INODE]; p++) {
+		// 读写文件时，必定是针对已经存在的文件，那么，p->i_cnt >= 1。
+		// 这句话不正确，已经存在的文件，p->i_cnt 的值是多少？大于等于0。
 		if (p->i_cnt) {	/* not a free slot */
 			if ((p->i_dev == dev) && (p->i_num == num)) {
 				/* this is the inode we want */
@@ -438,11 +450,22 @@ PUBLIC struct inode * get_inode(int dev, int num)
 			}
 		}
 		else {		/* a free slot */
+			// 没启动加速读取的作用，只是为把从硬盘中读取的数据放到磁盘创造条件。
+			// 创建文件时，执行这里。
+			// 很纠结。我认为，当一个inode的i_num等于0时，它对应的文件可能是一个
+			// 没有被打开的文件。但它仍对应一个文件，怎么能把它用来作为另一个文件的
+			// inode呢？旧文件怎么办？
+			// inode_table 只缓存正在使用的文件的inode，并不保存所有存在的文件的inode。
+			// 这样处理有问题吗？没有任何问题。
+			// 我先入为主认为，inode_table保存所有文件的inode。
 			if (!q) /* q hasn't been assigned yet */
 				q = p; /* q <- the 1st free slot */
 		}
 	}
-
+	// 本函数先在缓存中查找inode，不在缓存中，再到硬盘中查找。并且，
+	// 在硬盘中查找到的inode还要保存到缓存中。
+	// 如果缓存区满了，还要报错。
+	// 有必要吗？这属于设计问题。
 	if (!q)
 		panic("the inode table is full");
 
@@ -451,13 +474,22 @@ PUBLIC struct inode * get_inode(int dev, int num)
 	q->i_cnt = 1;
 
 	struct super_block * sb = get_super_block(dev);
+	// SECTOR_SIZE / INODE_SIZE：一个扇区容纳的inode的数量。
+	// 目标inode在第几个扇区。
+	// 常识性的坐标问题，我依然很纠结。不认为这样是对的，可以举例归纳，
+	// 我总不能否认具体的运算结果吧。
+	// num - 1 是inode偏移量（序号，不是字节）。
+	// (num - 1) / (SECTOR_SIZE / INODE_SIZE) 是包含目标inode的扇区的偏移量。
+	// LBA寻址方式读取扇区的参数就是目标扇区的扇区偏移量。
 	int blk_nr = 1 + 1 + sb->nr_imap_sects + sb->nr_smap_sects +
 		((num - 1) / (SECTOR_SIZE / INODE_SIZE));
 	RD_SECT(dev, blk_nr);
+	// (num - 1 ) % (SECTOR_SIZE / INODE_SIZE) 不足以占用一个扇区的剩余的inode的数量。
 	struct inode * pinode =
 		(struct inode*)((u8*)fsbuf +
 				((num - 1 ) % (SECTOR_SIZE / INODE_SIZE))
 				 * INODE_SIZE);
+	// 没有默认值或有默认值，从硬盘中读取出来是怎样的就是怎样的。
 	q->i_mode = pinode->i_mode;
 	q->i_size = pinode->i_size;
 	q->i_start_sect = pinode->i_start_sect;

@@ -72,6 +72,7 @@ PUBLIC int do_open()
 	if (i >= NR_FILE_DESC)
 		panic("f_desc_table[] is full (PID:%d)", proc2pid(pcaller));
 
+	// 当inode_nr = 0时，表示没有找到文件，也就是，根目录中没有这个文件。
 	int inode_nr = search_file(pathname);
 
 	struct inode * pin = 0;
@@ -81,6 +82,9 @@ PUBLIC int do_open()
 			return -1;
 		}
 		else {
+			// 每个文件确实有一些默认值，例如
+			// i_mode、i_nr_sects。
+			// 但这是在创建文件时用new_inode赋予的。
 			pin = create_file(pathname, flags);
 		}
 	}
@@ -91,6 +95,18 @@ PUBLIC int do_open()
 		struct inode * dir_inode;
 		if (strip_path(filename, pathname, &dir_inode) != 0)
 			return -1;
+		// 当inode_nr = 0时，pin = 0。
+		// 当pin = 0 时，本函数返回-1。
+		// 一个文件的信息存在于根目录中，那么，这个文件的inode一定存在于inode-array
+		// 和inode-array在内存中的对应的缓存中。
+		// 在inode-array或它的缓冲中找到的inode，即使 i_cnt = 0，这个inode也必定是
+		// 一个已经存在的文件的inode。也就是说，这个inode的成员i_nr_sects、i_start_sect
+		// 具有默认值。这些默认值是在创建这个文件时赋予的。
+		// 这几句解开了get_inode的末尾没有给inode的成员赋值的疑团。
+		// 凡是能用search_file查找到的inode的索引(不是0，不是-1，合法的索引），一定能用
+		// get_inode获取一个对应一个文件的inode（这个inode的成员有默认值）。
+		// 在这里，获取的inode，本来就是已经存在的文件的inode。
+		// 假如想打开一个不存在的文件，通过search_file查找到的inode的索引是0。
 		pin = get_inode(dir_inode->i_dev, inode_nr);
 	}
 
@@ -114,6 +130,8 @@ PUBLIC int do_open()
 			driver_msg.DEVICE = MINOR(dev);
 			assert(MAJOR(dev) == 4);
 			assert(dd_map[MAJOR(dev)].driver_nr != INVALID_DRIVER);
+			// dd_map[MAJOR(dev)].driver_nr 是 TASK_TTY 吗？ 
+			// 是。
 			send_recv(BOTH,
 				  dd_map[MAJOR(dev)].driver_nr,
 				  &driver_msg);

@@ -69,6 +69,8 @@ PUBLIC int do_rdwt()
 		fs_msg.CNT	= len;
 		fs_msg.PROC_NR	= src;
 		assert(dd_map[MAJOR(dev)].driver_nr != INVALID_DRIVER);
+		// 发消息给TTY，并且从TTY接收消息。
+		// TTY的哪块代码处理请求？根据fs_msg.type识别。
 		send_recv(BOTH, dd_map[MAJOR(dev)].driver_nr, &fs_msg);
 		assert(fs_msg.CNT == len);
 

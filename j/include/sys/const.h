@@ -200,6 +200,7 @@ enum msgtype {
 #define	MAJOR_SHIFT		8
 #define	MAKE_DEV(a,b)		((a << MAJOR_SHIFT) | b)
 /* separate major and minor numbers from device number */
+// 不理解这两个宏的意思。
 #define	MAJOR(x)		((x >> MAJOR_SHIFT) & 0xFF)
 #define	MINOR(x)		(x & 0xFF)
 

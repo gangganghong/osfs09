@@ -36,6 +36,7 @@
  * @see open()
  * @see do_open()
  *****************************************************************************/
+// 遍历根目录，根据文件名找到目标根目录。从目标根目录中获取目标文件的inode在inode-array中的索引.
 PUBLIC int search_file(char * path)
 {
 	int i, j;
@@ -161,7 +162,12 @@ PUBLIC int strip_path(char * filename, const char * pathname,
  	 * 10. &pinode的值是什么？0x02，即存储pinode的内存空间的内存地址。
  	 * 10.1 每个内存地址，又可以存储在另外一个内存空间中。存储0x02这个内存地址的内存空间
  	 * 是内存地址为0x01的内存空间，即变量ppinode对应的内存空间。
+ 	 * 11. 变量名，本质是这个变量名对应的内存中的数据。
 	 **********************************************************/
+	// 在init_fs中，root_inode = get_inode(ROOT_DEV, ROOT_INODE);
+	// root_inode 是一个全局变量。
+	// ./include/sys/global.h:51:EXTERN	struct inode *		root_inode;
+	// 在上面的位置声明的全局变量。
 	*ppinode = root_inode;
 
 	return 0;

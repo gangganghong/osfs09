@@ -46,6 +46,7 @@ PUBLIC int search_file(char * path)
 	if (strip_path(filename, path, &dir_inode) != 0)
 		return 0;
 
+	// 根目录
 	if (filename[0] == 0)	/* path: "/" */
 		return dir_inode->i_num;
 

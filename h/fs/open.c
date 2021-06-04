@@ -88,9 +88,17 @@ PUBLIC int do_open()
 		assert(flags & O_RDWR);
 
 		char filename[MAX_PATH];
+		// dir_inode 是根目录的inode。
+		// filename是文件名。
 		struct inode * dir_inode;
 		if (strip_path(filename, pathname, &dir_inode) != 0)
 			return -1;
+		// 根据inode-array的索引获取inode。
+		// 不对，根据inode在indoe-map中的索引获取inode。
+		// 理由是，使用get_inode获取根目录的inode时，使用的inode_nr的值是1。
+		// 根目录在inode-map中的索引是1，而不是0。0是保留位。
+		// 根目录在inode-array中的索引是0，而不是。
+		// 不该有疑问的地方，仔细推敲起来，反倒不容易说清楚。
 		pin = get_inode(dir_inode->i_dev, inode_nr);
 	}
 

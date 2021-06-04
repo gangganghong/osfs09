@@ -85,6 +85,8 @@ PUBLIC int do_open()
 		}
 	}
 	else {
+		// char tty_name[] = "/dev_tty1";int fd_stdin  = open(tty_name, O_RDWR);
+		// 会执行到这里。在mkfs中创建/dev_tty1。
 		assert(flags & O_RDWR);
 
 		char filename[MAX_PATH];
@@ -106,7 +108,7 @@ PUBLIC int do_open()
 		f_desc_table[i].fd_pos = 0;
 
 		int imode = pin->i_mode & I_TYPE_MASK;
-
+		// 打开tty时，执行这里
 		if (imode == I_CHAR_SPECIAL) {
 			MESSAGE driver_msg;
 			driver_msg.type = DEV_OPEN;
@@ -114,6 +116,9 @@ PUBLIC int do_open()
 			driver_msg.DEVICE = MINOR(dev);
 			assert(MAJOR(dev) == 4);
 			assert(dd_map[MAJOR(dev)].driver_nr != INVALID_DRIVER);
+			// 1. dd_map[MAJOR(dev)].driver_nr 选择的是TTY
+			// 2. 在TTY中，结合driver_msg.type = DEV_OPEN，执行到task_tty.c中的task_tty。
+			// 3. 执行到task_tty.c中的task_tty中的case DEV_OPEN。 
 			send_recv(BOTH,
 				  dd_map[MAJOR(dev)].driver_nr,
 				  &driver_msg);

@@ -175,7 +175,8 @@ void TestA()
 		close(fd);
 	}
 
-	char * rfilenames[] = {"/bar", "/foo", "/baz", "/dev_tty0"};
+	// char * rfilenames[] = {"/bar", "/foo", "/baz", "/dev_tty0"};
+	char * rfilenames[] = {"/bar", "/foo", "/baz"};
 
 	/* remove files */
 	for (i = 0; i < sizeof(rfilenames) / sizeof(rfilenames[0]); i++) {
@@ -204,6 +205,7 @@ void TestB()
 
 	while (1) {
 		write(fd_stdout, "$ ", 2);
+		// read 会阻塞 TestB，在哪里解除阻塞？
 		int r = read(fd_stdin, rdbuf, 70);
 		rdbuf[r] = 0;
 

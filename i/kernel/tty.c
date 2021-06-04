@@ -99,6 +99,7 @@ PUBLIC void task_tty()
 		case DEV_OPEN:
 			reset_msg(&msg);
 			msg.type = SYSCALL_RET;
+			// src 是 FS，也就是文件系统进程。
 			send_recv(SEND, src, &msg);
 			break;
 		case DEV_READ:
@@ -273,9 +274,13 @@ PRIVATE void tty_dev_write(TTY* tty)
 				tty->tty_left_cnt++;
 			}
 
+			// 写入显存的时候才解除阻塞。
+			// 知识性错误。不是写入显存，是写入？好像是写入了显存。
 			if (ch == '\n' || tty->tty_left_cnt == 0) {
 				out_char(tty->console, '\n');
 				MESSAGE msg;
+				// 向 tty_caller 发送type是RESUME_PROC的消息能解除调用终端的进程.
+				// tty->tty_caller仍然是文件系统FS，而不是TestB这样的用户进程。
 				msg.type = RESUME_PROC;
 				msg.PROC_NR = tty->tty_procnr;
 				msg.CNT = tty->tty_trans_cnt;

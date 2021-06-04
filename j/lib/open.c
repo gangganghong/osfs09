@@ -36,6 +36,7 @@ PUBLIC int open(const char *pathname, int flags)
 
 	msg.type	= OPEN;
 
+	// pathname 非常重要。它决定要打开的文件是tty0还是a.txt。
 	msg.PATHNAME	= (void*)pathname;
 	msg.FLAGS	= flags;
 	msg.NAME_LEN	= strlen(pathname);
@@ -43,5 +44,6 @@ PUBLIC int open(const char *pathname, int flags)
 	send_recv(BOTH, TASK_FS, &msg);
 	assert(msg.type == SYSCALL_RET);
 
+	// 当 pathname 是 /dev_tty1 时，msg.FD = 0，打开的文件是/dev_tty1，由task_tty处理读写操作。
 	return msg.FD;
 }

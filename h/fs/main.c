@@ -427,6 +427,10 @@ PUBLIC struct inode * get_inode(int dev, int num)
 
 	struct inode * p;
 	struct inode * q = 0;
+	// 1. inode_table[0]的i_cnt = 0，inode_table[1]的i_cnt >  0。
+	// 2. 这种情况下，目标inode是inode_table[0]。
+	// 3. 我认为，本函数应该优先选择满足条件i_num == num 的inode。
+	// 4. 可是，在我举的这个例子中，本函数选择的目标inode是inode_table[0]。
 	for (p = &inode_table[0]; p < &inode_table[NR_INODE]; p++) {
 		if (p->i_cnt) {	/* not a free slot */
 			if ((p->i_dev == dev) && (p->i_num == num)) {
@@ -449,13 +453,37 @@ PUBLIC struct inode * get_inode(int dev, int num)
 	q->i_cnt = 1;
 
 	struct super_block * sb = get_super_block(dev);
+	// boot-sector + super block + inode-map + sector-map + inode-array到目标inode
+	// num 是inode在inode-map中的索引，要换算成在inode-array中的索引 num - 1。
+	// (num - 1) / (SECTOR_SIZE / INODE_SIZE)，从inode-array区域的初始位置到目标inode的空间折算
+	// 成扇区数量。
+	// blk_nr 是目标node所在的扇区的LBA地址。
 	int blk_nr = 1 + 1 + sb->nr_imap_sects + sb->nr_smap_sects +
 		((num - 1) / (SECTOR_SIZE / INODE_SIZE));
+	// blk_nr 是偏移量。LBA本质是偏移量，相对于初始扇区的偏移量。初始扇区是0。
+	// 1. 强调“偏移量”，并且是初始值是0的偏移量，目的是说清楚：
+	// 2. 下面的“读取到的”中的数字，初始值是1。
+	// 3. 偏移量是0，读取的是第1个数据；
+	// 4. 偏移量是1，读取的是第2个数据；偏移量是n,读取的是第n+1个数据。
 	RD_SECT(dev, blk_nr);
+	// 我觉得这种运算很烦！举例子理解是最好的方式。
+	// 1. SECTOR_SIZE / INODE_SIZE，一个扇区包含多少个inode。
+	// 2. num - 1，是bit数量，不是字节数。
+	// 3. num - 1, 确实是bit数量，不过，在这里，应该理解为inode的数量。
+	// 4.  一个扇区包含的inode数量是SECTOR_SIZE / INODE_SIZE，那么，
+	// 5. num - 1 个inode需要占用几个扇区？
+	// 6. 答案是：(num - 1)/(SECTOR_SIZE / INODE_SIZ)。
+	// 7. (num - 1 ) % (SECTOR_SIZE / INODE_SIZE) 是什么？
+	// 8. 是占用了一个扇区但是不足以占用整个扇区的inode的数量。
+	// 9. 记住了，在这里，初始值是0。(num - 1 ) % (SECTOR_SIZE / INODE_SIZE))*NODE_SIZE是偏移量。
 	struct inode * pinode =
 		(struct inode*)((u8*)fsbuf +
 				((num - 1 ) % (SECTOR_SIZE / INODE_SIZE))
 				 * INODE_SIZE);
+	// 获取的空闲inode的成员没有初始值吗?
+	// 答案是，inode的成员的初始值是0，并不是我想象中的那样。
+	// 我的想象是：i_start_sect是本文件的第一个扇区号，i_nr_sects 是所有文件占用的扇区的数量。
+	//
 	q->i_mode = pinode->i_mode;
 	q->i_size = pinode->i_size;
 	q->i_start_sect = pinode->i_start_sect;

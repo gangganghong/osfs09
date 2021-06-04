@@ -118,7 +118,7 @@ _start:
 	;
 	;
 
-
+	xchg	bx, bx
 	; 把 esp 从 LOADER 挪到 KERNEL
 	mov	esp, StackTop	; 堆栈在 bss 段中
 

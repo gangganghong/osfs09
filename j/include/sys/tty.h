@@ -23,6 +23,7 @@ typedef struct s_tty
 	u32*	ibuf_tail;		/* the val to be processed by TTY */
 	int	ibuf_cnt;		/* how many */
 
+	// tty_caller 是什么？
 	int	tty_caller;
 	int	tty_procnr;
 	void*	tty_req_buf;
