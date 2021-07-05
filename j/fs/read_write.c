@@ -49,6 +49,8 @@ PUBLIC int do_rdwt()
 	if (!(pcaller->filp[fd]->fd_mode & O_RDWR))
 		return 0;
 
+	// pos是512的倍数吗？
+	// 不是。
 	int pos = pcaller->filp[fd]->fd_pos;
 
 	struct inode * pin = pcaller->filp[fd]->fd_inode;
@@ -86,10 +88,27 @@ PUBLIC int do_rdwt()
 		else		/* WRITE */
 			pos_end = min(pos + len, pin->i_nr_sects * SECTOR_SIZE);
 
+		// 心算pos_end，有点费劲。
+		// pos_end有两种还是三种情况？
+		// 1. 正好是512*N。
+		// 2. 512*N + offset。
+		// 3. 因此，是两种。
+		// 4. 有条理地思考问题，而不要混乱地思考问题。
 		int off = pos % SECTOR_SIZE;
+		// 1. pin->i_start_sect 是相对于安装文件系统的分区的偏移量。
+		// 1.1. 依据是，在mkfs中，根目录的inode，pi->i_start_sect = sb.n_1st_sect。
+		// 1.2. sb.n_1st_sect	  = 1 + 1 + sb.nr_imap_sects + sb.nr_smap_sects
+		// 	 + sb.nr_inode_sects。
+		// 2. pos 是相对于pin->i_start_sect的偏移量。
+		// 3. rw_sect_min 是相对于安装文件系统的分区的偏移量。
+		// 4. 结论：rw_sect_min、rw_sect_max都是偏移量。
+		// 5. 这个结论在kernel/hd.c#hd_rdwt计算绝对LBA地址是很有用。
 		int rw_sect_min=pin->i_start_sect+(pos>>SECTOR_SIZE_SHIFT);
 		int rw_sect_max=pin->i_start_sect+(pos_end>>SECTOR_SIZE_SHIFT);
 
+		// chunk由pos_end和pos决定。
+		// 1. pos是512*N，pos_end是512*N + offset。
+		// 2. FSBUF_SIZE 折算成扇区是 2048。
 		int chunk = min(rw_sect_max - rw_sect_min + 1,
 				FSBUF_SIZE >> SECTOR_SIZE_SHIFT);
 

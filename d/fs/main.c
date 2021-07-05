@@ -97,6 +97,10 @@ PRIVATE void mkfs()
 	sb.nr_inode_sects = sb.nr_inodes * INODE_SIZE / SECTOR_SIZE;
 	sb.nr_sects	  = geo.size; /* partition size in sector */
 	sb.nr_imap_sects  = 1;
+	// sector-map的第0个bit是保留位。
+	// 早晨，有点困。
+	// 这么简单的问题，第一次看，我觉得没有问题；第二次看，我又觉得第一次的理解不正确。
+	// 分区的扇区数量大于等于1，不可能等于0。
 	sb.nr_smap_sects  = sb.nr_sects / bits_per_sect + 1;
 	sb.n_1st_sect	  = 1 + 1 +   /* boot sector & super block */
 		sb.nr_imap_sects + sb.nr_smap_sects + sb.nr_inode_sects;
@@ -116,6 +120,7 @@ PRIVATE void mkfs()
 	/* write the super block */
 	WR_SECT(ROOT_DEV, 1);
 
+	// 为什么要乘以2？是因为geo.base的单位是字吗？
 	printl("devbase:0x%x00, sb:0x%x00, imap:0x%x00, smap:0x%x00\n"
 	       "        inodes:0x%x00, 1st_sector:0x%x00\n", 
 	       geo.base * 2,
@@ -146,6 +151,8 @@ PRIVATE void mkfs()
 	/************************/
 	/*      secter map      */
 	/************************/
+	// 1. nr_sects是bit数，2049/8/512 的结果小于1。
+	// 2. 也就是说，一个扇区足以记录当前数据区的扇区使用情况。  
 	memset(fsbuf, 0, SECTOR_SIZE);
 	int nr_sects = NR_DEFAULT_FILE_SECTS + 1;
 	/*             ~~~~~~~~~~~~~~~~~~~|~   |

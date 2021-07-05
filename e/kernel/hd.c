@@ -132,7 +132,9 @@ PRIVATE void hd_open(int device)
 
 	hd_identify(drive);
 
+	// 已经打开过就不再重复打开
 	if (hd_info[drive].open_cnt++ == 0) {
+		// drive * (NR_PART_PER_DRIVE + 1) 的值是0或5。
 		partition(drive * (NR_PART_PER_DRIVE + 1), P_PRIMARY);
 		print_hdinfo(&hd_info[drive]);
 	}
@@ -326,11 +328,13 @@ PRIVATE void partition(int device, int style)
 		for (i = 0; i < NR_SUB_PER_PART; i++) {
 			int dev_nr = nr_1st_sub + i;/* 0~15/16~31/32~47/48~63 */
 
+			// 分区表在分区的第一个扇区
 			get_part_table(drive, s, part_tbl);
 
 			hdi->logical[dev_nr].base = s + part_tbl[0].start_sect;
 			hdi->logical[dev_nr].size = part_tbl[0].nr_sects;
 
+			// 每个分区的LBA基准地址是包含它自身的那个分区的LBA地址。
 			s = ext_start_sect + part_tbl[1].start_sect;
 
 			/* no more logical partitions

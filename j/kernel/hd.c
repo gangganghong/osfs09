@@ -165,22 +165,43 @@ PRIVATE void hd_close(int device)
  *****************************************************************************/
 PRIVATE void hd_rdwt(MESSAGE * p)
 {
+	// 根据次设备号计算出硬盘号
 	int drive = DRV_OF_DEV(p->DEVICE);
 
+	// 从消息中获取硬盘操作的初始LBA地址。首先获取硬盘操作的初始字节位置，
+	// 在下面换算成LBA地址。
 	u64 pos = p->POSITION;
+	// 1. 这句的作用是什么？
+	// 2. pos >> SECTOR_SIZE_SHIFT 把 pos 换算成扇区数。
+	// 3. 注意，pos的数据类型是unsigned long long。 
+	// 4. 1 << 31 是什么？
 	assert((pos >> SECTOR_SIZE_SHIFT) < (1 << 31));
 
 	/**
 	 * We only allow to R/W from a SECTOR boundary:
 	 */
+	// 等价于 pos % 512 == 0
 	assert((pos & 0x1FF) == 0);
 
+	// sect_nr就是LBA地址。
 	u32 sect_nr = (u32)(pos >> SECTOR_SIZE_SHIFT); /* pos / SECTOR_SIZE */
+	// 根据次设备号找出硬盘分区信息中对应的逻辑分区号。
 	int logidx = (p->DEVICE - MINOR_hd1a) % NR_SUB_PER_DRIVE;
+	// 1. 计算出绝对LBA地址。
+	// 2. 绝对LBA地址 = 主扩展分区的LBA地址 + 偏移量。
+	// 3. 下面的语句中，表面上看起来，绝对LBA地址 = 逻辑分区的LBA地址 + 偏移量。
+	// 4. 实际上，也是符合第2点中的计算公式的。
+	// 5. 在第3点中，偏移量是相对于逻辑分区的偏移量，而逻辑分区的LBA地址，就是逻辑分区相对于
+	// 	主扩展分区的绝对LBA地址。
+	// 6. 还有一个疑问：偏移量相对于逻辑分区还是主扩展分区是如何判断的？
+	// 7. 解答在fs/read_write.c#do_rdwt中的
+	// 	int rw_sect_min=pin->i_start_sect+(pos>>SECTOR_SIZE_SHIFT) 
+	// 	上面的注释。
 	sect_nr += p->DEVICE < MAX_PRIM ?
 		hd_info[drive].primary[p->DEVICE].base :
 		hd_info[drive].logical[logidx].base;
 
+	// 一个模板
 	struct hd_cmd cmd;
 	cmd.features	= 0;
 	cmd.count	= (p->CNT + SECTOR_SIZE - 1) / SECTOR_SIZE;
@@ -191,17 +212,37 @@ PRIVATE void hd_rdwt(MESSAGE * p)
 	cmd.command	= (p->type == DEV_READ) ? ATA_READ : ATA_WRITE;
 	hd_cmd_out(&cmd);
 
+	// 要读取或写入的数据的长度。
 	int bytes_left = p->CNT;
+	// 把数据从硬盘中读取到la地址处；或把la地址处的数据写入硬盘。
 	void * la = (void*)va2la(p->PROC_NR, p->BUF);
 
 	while (bytes_left) {
+		// bytes_left % SECTOR_SIZE == 0 && bytes_left >= SECTOR_SIZE
+		// bytes 总是等于 SECTOR_SIZE。
+		// 看hd.c中的read_write.c中的传参便知。
 		int bytes = min(SECTOR_SIZE, bytes_left);
 		if (p->type == DEV_READ) {
+			// 1. 执行完hd_cmd_out后，会发生一个硬盘中断。
+			// 2. 硬盘中断什么时候发生，这不可预测。硬盘中断例程会解除本进程的阻塞。
+			// 3. 当硬盘中断发生后，数据已经在REG_DATA端口准备好，可以读取了。
 			interrupt_wait();
 			port_read(REG_DATA, hdbuf, SECTOR_SIZE);
 			phys_copy(la, (void*)va2la(TASK_HD, hdbuf), bytes);
 		}
 		else {
+			// 1. 检查硬盘是否准备好了传输数据。
+			// 2. 准备好之后，才把数据写入REG_DATA端口。
+			// 3. 数据全部写入到REG_DATA端口后，本进程就能继续运行了吗？
+			// 4. 先看看把数据写入到端口后立即运行本进程。
+			// 5. 此时，数据堆积在REG_DATA端口，没有被写入硬盘。这是我的猜测。
+			// 6. 继续往REG_DATA端口写入数据，可能会丢失数据。仍然是我的猜测。
+			// 7. 再看加入了interrupt_wait。
+			// 8. 把数据写入REG_DATA端口后，本进程阻塞。
+			// 9. 硬盘会把REG_DATA端口的数据写入硬盘。写入结束后，会触发硬盘中断。
+			// 10.硬盘中断通知本进程解除阻塞。
+			// 11.通过分析读写场景，我认为，当硬盘和REG_DATA端口传输数据结束后，会触发
+			// 	硬盘中断。   
 			if (!waitfor(STATUS_DRQ, STATUS_DRQ, HD_TIMEOUT))
 				panic("hd writing error.");
 

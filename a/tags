@@ -29,7 +29,7 @@ BaseOfStack	boot/loader.asm	/^BaseOfStack	equ	0100h$/;"	d
 BootMessage	boot/boot.asm	/^BootMessage:		db	"Booting  "; 9字节, 不够则用空格补齐. 序号 0$/;"	d
 CAPS_LOCK	include/keyboard.h	52;"	d
 CASCADE_IRQ	include/const.h	109;"	d
-CC	Makefile	/^CC		= gcc -g$/;"	m
+CC	Makefile	/^CC		= gcc$/;"	m
 CFLAGS	Makefile	/^CFLAGS		= -I include\/ -c -fno-builtin -Wall -m32$/;"	m
 CLOCK_IRQ	include/const.h	107;"	d
 CNT	include/const.h	169;"	d
@@ -234,7 +234,7 @@ MAJOR	include/const.h	209;"	d
 MAJOR_SHIFT	include/const.h	206;"	d
 MAKE_COLOR	include/const.h	47;"	d
 MAKE_DEV	include/const.h	207;"	d
-MAKE_DEVICE_REG	include/hd.h	267;"	d
+MAKE_DEVICE_REG	include/hd.h	268;"	d
 MAP_COLS	include/keyboard.h	16;"	d
 MASK_RAW	include/keyboard.h	29;"	d
 MAX_DRIVES	include/const.h	224;"	d

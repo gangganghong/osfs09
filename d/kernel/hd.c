@@ -39,6 +39,8 @@ PRIVATE	u8		hd_status;
 PRIVATE	u8		hdbuf[SECTOR_SIZE * 2];
 PRIVATE	struct hd_info	hd_info[1];
 
+// 硬盘号
+// dev是次设备号
 #define	DRV_OF_DEV(dev) (dev <= MAX_PRIM ? \
 			 dev / NR_PRIM_PER_DRIVE : \
 			 (dev - MINOR_hd1a) / NR_SUB_PER_DRIVE)
@@ -126,12 +128,16 @@ PRIVATE void init_hd()
  *****************************************************************************/
 PRIVATE void hd_open(int device)
 {
+	// 第0块硬盘还是第1块硬盘。
+	// device是次设备号
 	int drive = DRV_OF_DEV(device);
 	assert(drive == 0);	/* only one drive */
 
 	hd_identify(drive);
 
 	if (hd_info[drive].open_cnt++ == 0) {
+		// 1. drive * (NR_PART_PER_DRIVE + 1) 的取值范围是多少？
+		// 2. 只有两个值：0或5。
 		partition(drive * (NR_PART_PER_DRIVE + 1), P_PRIMARY);
 		print_hdinfo(&hd_info[drive]);
 	}
@@ -197,6 +203,8 @@ PRIVATE void hd_rdwt(MESSAGE * p)
 		int bytes = min(SECTOR_SIZE, bytes_left);
 		if (p->type == DEV_READ) {
 			interrupt_wait();
+			// 1. 当硬盘中的数据不足一个扇区时，port_read函数也读取一个扇区的数据。
+			// 2. 这会出现问题吗？
 			port_read(REG_DATA, hdbuf, SECTOR_SIZE);
 			phys_copy(la, (void*)va2la(TASK_HD, hdbuf), bytes);
 		}
@@ -287,6 +295,7 @@ PRIVATE void get_part_table(int drive, int sect_nr, struct part_ent * entry)
 PRIVATE void partition(int device, int style)
 {
 	int i;
+	// 第0块硬盘还是第1块硬盘
 	int drive = DRV_OF_DEV(device);
 	struct hd_info * hdi = &hd_info[drive];
 
@@ -305,7 +314,12 @@ PRIVATE void partition(int device, int style)
 			hdi->primary[dev_nr].base = part_tbl[i].start_sect;
 			hdi->primary[dev_nr].size = part_tbl[i].nr_sects;
 
+			// 1. device的取值范围是多少？
+			// 2. 0或5。
 			if (part_tbl[i].sys_id == EXT_PART) /* extended */
+				// 为啥是device + dev_nr，而不是dev_nr？
+				// 为了在本函数的开头计算出正确的硬盘号。
+				// 如果只需要满足style == P_EXTENDED分支的要求，不需要加device。
 				partition(device + dev_nr, P_EXTENDED);
 		}
 		assert(nr_prim_parts != 0);
